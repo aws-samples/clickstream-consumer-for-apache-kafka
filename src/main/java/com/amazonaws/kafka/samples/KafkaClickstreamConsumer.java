@@ -16,7 +16,7 @@ import java.util.concurrent.*;
 
 public class KafkaClickstreamConsumer {
 
-    private static final Logger logger = LogManager.getLogger(RunConsumer.class);
+    private static final Logger logger = LogManager.getLogger(KafkaClickstreamConsumer.class);
     private static long startTime;
 
     @Parameter(names = {"--help", "-h"}, help = true)
