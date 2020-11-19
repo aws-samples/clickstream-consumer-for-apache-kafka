@@ -59,15 +59,15 @@ class RunConsumer implements Callable<String> {
                     logger.info(Thread.currentThread().getName() + " - " + System.currentTimeMillis() + "  Waiting for data. Number of records retrieved: " + records.count());
                 for (ConsumerRecord<String, ClickEvent> record : records) {
                     if (numberOfMessages == 0)
-                        logger.info("{} - Topic = {}, Partition = {}, offset = {}, key = {}, value = {}\n", Thread.currentThread().getName(), record.topic(), record.partition(), record.offset(), record.key(), record.value());
+                        logger.info("{} - Topic = {}, Partition = {}, offset = {}, key = {}, value = {}\n", Thread.currentThread().getName(), record.topic(), record.partition(), record.offset(), record.key().trim(), record.value());
                     globalSeqNo = record.value().getGlobalseq();
                     propagationDelay += System.currentTimeMillis() - record.value().getEventtimestamp();
                     numberOfMessages++;
-                    if (numberOfMessages % 10000 == 0){
+                    if (numberOfMessages % 1000 == 0){
                         avgPropagationDelay = (double)propagationDelay/numberOfMessages;
                         logger.info("{} - Avg Propagation delay in milliseconds: {} \n", Thread.currentThread().getName(), avgPropagationDelay);
                         logger.info("{} - Messages processed: {} \n", Thread.currentThread().getName(), numberOfMessages);
-                        logger.info("{} - Topic = {}, Partition = {}, offset = {}, key = {}, value = {} \n", Thread.currentThread().getName(), record.topic(), record.partition(), record.offset(), record.key(), record.value());
+                        logger.info("{} - Topic = {}, Partition = {}, offset = {}, key = {}, value = {} \n", Thread.currentThread().getName(), record.topic(), record.partition(), record.offset(), record.key().trim(), record.value());
                     }
 
                     currentOffsets.put(new TopicPartition(record.topic(), record.partition()), new OffsetAndMetadata(record.offset() + 1, "No Metadata"));

@@ -6,6 +6,6 @@ import samples.clickstream.avro.ClickEvent;
 
 class KafkaConsumerFactory {
     Consumer<String, ClickEvent> createConsumer() {
-        return new KafkaConsumer<>(ConsumerConfigs.consumerConfig());
+        return new KafkaConsumer<>(KafkaClickstreamConsumer.consumerProperties);
     }
 }

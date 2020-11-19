@@ -29,7 +29,7 @@ public class KafkaClickstreamConsumer {
     static String propertiesFilePath = "/tmp/kafka/consumer.properties";
 
     @Parameter(names = {"--numThreads", "-nt"})
-    private static Integer numThreads = 2;
+    private static Integer numThreads = 1;
 
     @Parameter(names = {"--runFor", "-rf"})
     private static Integer runFor = 0;
@@ -40,6 +40,15 @@ public class KafkaClickstreamConsumer {
     @Parameter(names = {"--mTLSEnable", "-mtls"})
     static boolean mTLSEnable = false;
 
+    @Parameter(names = {"--saslscramEnable", "-sse"})
+    static boolean saslscramEnable = false;
+
+    @Parameter(names = {"--saslscramUser", "-ssu"})
+    static String saslscramUser;
+
+    @Parameter(names = {"--glueSchemaRegistry", "-gsr"})
+    static boolean glueSchemaRegistry = false;
+
     @Parameter(names = {"--failover", "-flo"})
     static boolean failover = false;
 
@@ -49,8 +58,26 @@ public class KafkaClickstreamConsumer {
     @Parameter(names = {"--sourceCluster", "-src"})
     static String sourceCluster = "msksource";
 
+    @Parameter(names = {"--gsrRegistryName", "-grn"})
+    static String gsrRegistryName;
+
+    @Parameter(names = {"--gsrSchemaName", "-gsn"})
+    static String gsrSchemaName;
+
+    @Parameter(names = {"--gsrSchemaDescription", "-gsd"})
+    static String gsrSchemaDescription;
+
+    @Parameter(names = {"--secondaryDeserializer", "-sdd"})
+    static boolean secondaryDeserializer = false;
+
     @Parameter(names = {"--destCluster", "-dst"})
     static String destCluster = "mskdest";
+
+    @Parameter(names = {"--region", "-reg"})
+    static String region = "us-east-1";
+
+    @Parameter(names = {"--gsrRegion", "-gsrr"})
+    static String gsrRegion = "us-east-1";
 
     @Parameter(names = {"--replicationPolicySeparator", "-rps"})
     static String replicationPolicySeparator = MirrorClientConfig.REPLICATION_POLICY_SEPARATOR_DEFAULT;
@@ -60,6 +87,8 @@ public class KafkaClickstreamConsumer {
 
     static String bookmarkFileLocation = "/tmp/consumer_bookmark.txt";
     private static final String failoverBookmarkFileLocation = "/tmp/consumer_bookmark.txt";
+
+    static Properties consumerProperties;
 
     private static <T> Collection<Future<T>> submitAll(ExecutorService service, Collection<? extends Callable<T>> tasks) {
         Collection<Future<T>> futures = new ArrayList<>(tasks.size());
@@ -98,7 +127,7 @@ public class KafkaClickstreamConsumer {
 
     private Map<TopicPartition, Long> getCheckPointLag(MirrorClientSource mirrorClientSource) throws IOException {
 
-        Map<TopicPartition, OffsetAndMetadata> sourceConsumerOffsets = mirrorClientSource.sourceConsumerOffsets(ConsumerConfigs.consumerConfig().getProperty(ConsumerConfig.GROUP_ID_CONFIG), KafkaClickstreamConsumer.sourceCluster, Duration.ofSeconds(20L));
+        Map<TopicPartition, OffsetAndMetadata> sourceConsumerOffsets = mirrorClientSource.sourceConsumerOffsets(consumerProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG), KafkaClickstreamConsumer.sourceCluster, Duration.ofSeconds(20L));
         if (sourceConsumerOffsets.size() == 0) {
             logger.error("Error retrieving source consumer offsets from the MM2 checkpoint topic.");
             throw new RuntimeException("Error retrieving source consumer offsets from the MM2 checkpoint topic.");
@@ -131,6 +160,7 @@ public class KafkaClickstreamConsumer {
             return;
         }
         ParametersValidator.validate();
+        consumerProperties = ConsumerConfigs.consumerConfig();
         MM2Config mm2Config = new MM2Config();
         MirrorClientSource mirrorClientSource = new MirrorClientSource(mm2Config.mm2config());
 
