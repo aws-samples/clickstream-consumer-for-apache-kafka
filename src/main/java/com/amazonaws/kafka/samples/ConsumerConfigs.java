@@ -39,6 +39,7 @@ class ConsumerConfigs {
     private static boolean sslEnable = false;
     private static boolean mTLSEnable = false;
     private static boolean saslScramEnable = false;
+    private static boolean iamEnable = false;
     private static boolean glueSchemaRegistry = false;
 
     private static final Logger logger = LogManager.getLogger(ConsumerConfigs.class);
@@ -71,6 +72,10 @@ class ConsumerConfigs {
             saslScramEnable = true;
         }
 
+        if (KafkaClickstreamConsumer.iamEnable) {
+            iamEnable = true;
+        }
+
         if (KafkaClickstreamConsumer.glueSchemaRegistry){
             glueSchemaRegistry = true;
         }
@@ -101,6 +106,13 @@ class ConsumerConfigs {
                 consumerProps.setProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
                 consumerProps.setProperty(SaslConfigs.SASL_MECHANISM, "SCRAM-SHA-512");
                 consumerProps.setProperty(SaslConfigs.SASL_JAAS_CONFIG, getSaslScramString());
+            }
+
+            if (iamEnable) {
+                consumerProps.setProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
+                consumerProps.setProperty(SaslConfigs.SASL_MECHANISM, "AWS_MSK_IAM");
+                consumerProps.setProperty(SaslConfigs.SASL_JAAS_CONFIG, "software.amazon.msk.auth.iam.IAMLoginModule required;");
+                consumerProps.setProperty(SaslConfigs.SASL_CLIENT_CALLBACK_HANDLER_CLASS, "software.amazon.msk.auth.iam.IAMClientCallbackHandler");
             }
 
             if (glueSchemaRegistry){
@@ -143,6 +155,12 @@ class ConsumerConfigs {
                 consumerProps.setProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
                 consumerProps.setProperty(SaslConfigs.SASL_MECHANISM, "SCRAM-SHA-512");
                 consumerProps.setProperty(SaslConfigs.SASL_JAAS_CONFIG, getSaslScramString());
+            }
+            if (iamEnable) {
+                consumerProps.setProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
+                consumerProps.setProperty(SaslConfigs.SASL_MECHANISM, "AWS_MSK_IAM");
+                consumerProps.setProperty(SaslConfigs.SASL_JAAS_CONFIG, "software.amazon.msk.auth.iam.IAMLoginModule required;");
+                consumerProps.setProperty(SaslConfigs.SASL_CLIENT_CALLBACK_HANDLER_CLASS, "software.amazon.msk.auth.iam.IAMClientCallbackHandler");
             }
 
             if (glueSchemaRegistry){

@@ -43,6 +43,9 @@ public class KafkaClickstreamConsumer {
     @Parameter(names = {"--saslscramEnable", "-sse"})
     static boolean saslscramEnable = false;
 
+    @Parameter(names = {"--iamEnable", "-iam"})
+    static boolean iamEnable = false;
+
     @Parameter(names = {"--saslscramUser", "-ssu"})
     static String saslscramUser;
 
