@@ -128,3 +128,10 @@ The library needs to be installed first before creating the jar file for the con
    ```
    java -jar KafkaClickstreamConsumer-1.0-SNAPSHOT.jar -t ExampleTopic -pfp /tmp/kafka/consumer.properties -nt 3 -rf 10800 -iam
    ```
+
+### Docker Commands
+
+   ```
+  docker build . -t clickstream-consumer:latest
+  docker run --rm -p 3800:3800 -e REGION=us-east-1 -e BROKERS=localhost:9092 -e TOPIC=click-stream  -e NMTRD=1 clickstream-consumer 
+  ```
