@@ -44,15 +44,15 @@ WORKDIR mirrormaker2-msk-migration/CustomMM2ReplicationPolicy
 RUN mvn clean install
 WORKDIR ../
 
-RUN git clone https://github.com/awsalialem/clickstream-consumer-for-apache-kafka.git
+RUN mkdir clickstream-consumer-for-apache-kafka
+ADD . clickstream-consumer-for-apache-kafka/
 WORKDIR clickstream-consumer-for-apache-kafka
 RUN mvn clean install -f pom.xml
+RUN mv target/KafkaClickstreamConsumer-1.0-SNAPSHOT.jar /opt
 
 # add properties files 
 ADD consumer.properties /opt/consumer.properties
 ADD kafka-producer-consumer.yml /opt/kafka-producer-consumer.yml
-
-RUN mv target/KafkaClickstreamConsumer-1.0-SNAPSHOT.jar /opt
 
 # include all start scripts
 ADD start-kafka-consumer.sh /opt/start-kafka-consumer.sh
