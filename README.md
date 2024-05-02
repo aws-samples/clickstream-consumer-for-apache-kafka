@@ -133,6 +133,6 @@ The library needs to be installed first before creating the jar file for the con
 
     ```
     export DOCKER_DEFAULT_PLATFORM="linux/amd64" 
-    docker build . -t clickstream-consumer-for-apache-kafka:latest
+    docker build . -t clickstream-consumer-for-apache-kafka:latest 
     docker run --rm -p 3800:3800 -e REGION=us-east-1 -e BOOTSTRAP_SERVERS_CONFIG="b-1.XXX.kafka.us-east-1.amazonaws.com:9098" -e TOPIC=click-stream -e NMTRD=1 clickstream-consumer-for-apache-kafka:latest
     ```

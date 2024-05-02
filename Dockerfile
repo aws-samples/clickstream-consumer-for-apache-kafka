@@ -47,7 +47,7 @@ WORKDIR ../
 RUN mkdir clickstream-consumer-for-apache-kafka
 WORKDIR clickstream-consumer-for-apache-kafka
 COPY src/ ./src/
-COPY pom.xml start-kafka-consumer.sh consumer.properties ./
+COPY pom.xml start-kafka-consumer.sh consumer.properties kafka-producer-consumer.yml ./
 RUN chmod 777 start-kafka-consumer.sh
 RUN mvn clean install -f pom.xml
 
@@ -55,5 +55,4 @@ RUN mvn clean install -f pom.xml
 RUN yum clean all;
 
 EXPOSE 3801
-USER root
-ENTRYPOINT start-kafka-consumer.sh
+ENTRYPOINT ./start-kafka-consumer.sh
