@@ -5,7 +5,6 @@ import com.beust.jcommander.Parameter;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.connect.mirror.MirrorClientConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import java.io.IOException;
@@ -55,9 +54,6 @@ public class KafkaClickstreamConsumer {
     @Parameter(names = {"--failover", "-flo"})
     static boolean failover = false;
 
-    @Parameter(names = {"--sourceRewind", "-srr"})
-    static boolean sourceRewind = false;
-
     @Parameter(names = {"--sourceCluster", "-src"})
     static String sourceCluster = "msksource";
 
@@ -82,15 +78,6 @@ public class KafkaClickstreamConsumer {
     @Parameter(names = {"--gsrRegion", "-gsrr"})
     static String gsrRegion = "us-east-1";
 
-    @Parameter(names = {"--replicationPolicySeparator", "-rps"})
-    static String replicationPolicySeparator = MirrorClientConfig.REPLICATION_POLICY_SEPARATOR_DEFAULT;
-
-    @Parameter(names = {"--replicationPolicyClass", "-rpc"})
-    static String replicationPolicyClass = String.valueOf(MirrorClientConfig.REPLICATION_POLICY_CLASS_DEFAULT);
-
-    static String bookmarkFileLocation = "/tmp/consumer_bookmark.txt";
-    private static final String failoverBookmarkFileLocation = "/tmp/consumer_bookmark.txt";
-
     static Properties consumerProperties;
 
     private static <T> Collection<Future<T>> submitAll(ExecutorService service, Collection<? extends Callable<T>> tasks) {
@@ -111,7 +98,7 @@ public class KafkaClickstreamConsumer {
         try {
             TimeUnit.SECONDS.sleep(2);
         } catch (InterruptedException e) {
-            logger.error(Util.stackTrace(e));
+            logger.error(e.getMessage(), e);
         }
 
         try {
@@ -120,7 +107,7 @@ public class KafkaClickstreamConsumer {
                 logger.info("Not yet. Still waiting for consumer(s) termination");
             }
         } catch (InterruptedException e) {
-            logger.error(Util.stackTrace(e));
+            logger.error(e.getMessage(), e);
         }
         long endTime = System.nanoTime();
         logger.info("End Timestamp: {} \n", TimeUnit.NANOSECONDS.toMillis(System.nanoTime()));
@@ -128,31 +115,11 @@ public class KafkaClickstreamConsumer {
         logger.info("Execution time in milliseconds: {} \n", TimeUnit.NANOSECONDS.toMillis(executionTime));
     }
 
-    private Map<TopicPartition, Long> getCheckPointLag(MirrorClientSource mirrorClientSource) throws IOException {
-
-        Map<TopicPartition, OffsetAndMetadata> sourceConsumerOffsets = mirrorClientSource.sourceConsumerOffsets(consumerProperties.getProperty(ConsumerConfig.GROUP_ID_CONFIG), KafkaClickstreamConsumer.sourceCluster, Duration.ofSeconds(20L));
-        if (sourceConsumerOffsets.size() == 0) {
-            logger.error("Error retrieving source consumer offsets from the MM2 checkpoint topic.");
-            throw new RuntimeException("Error retrieving source consumer offsets from the MM2 checkpoint topic.");
-        }
-        Map<TopicPartition, OffsetAndMetadata> offsetsFromFile = Util.getOffsetsFromFile(KafkaClickstreamConsumer.bookmarkFileLocation, "TopicPartitionOffset", ":", ",", "-");
-        if (offsetsFromFile.size() == 0) {
-            logger.error("Error retrieving source last consumer offsets from the consumer bookmark file {}. \n", bookmarkFileLocation);
-            throw new RuntimeException("Error retrieving source consumer offsets from the MM2 checkpoint topic.");
-        }
-        final Map<TopicPartition, Long> checkpointLag = Util.getCheckpointLag(offsetsFromFile, sourceConsumerOffsets, mirrorClientSource);
-        logger.info("Checkpoint Lag {} \n", checkpointLag);
-        return checkpointLag;
-    }
-
-
     public static void main(String[] args) throws IOException {
 
         startTime = System.nanoTime();
         logger.info("Start time: {} \n", TimeUnit.NANOSECONDS.toMillis(startTime));
         final KafkaClickstreamConsumer kafkaClickstreamConsumer = new KafkaClickstreamConsumer();
-        Map<TopicPartition, OffsetAndMetadata> mm2TranslatedOffsets = null;
-        Map<TopicPartition, Long> checkpointLag;
 
         JCommander jc = JCommander.newBuilder()
                 .addObject(kafkaClickstreamConsumer)
@@ -164,33 +131,15 @@ public class KafkaClickstreamConsumer {
         }
         ParametersValidator.validate();
         consumerProperties = ConsumerConfigs.consumerConfig();
-        MM2Config mm2Config = new MM2Config();
-        MirrorClientSource mirrorClientSource = new MirrorClientSource(mm2Config.mm2config());
-
-        if (failover) {
-            checkpointLag = kafkaClickstreamConsumer.getCheckPointLag(mirrorClientSource);
-            mm2TranslatedOffsets = Util.updateMM2translatedOffsetsIfCheckpointLag(checkpointLag, mirrorClientSource, Util.getTranslatedOffsets(mm2Config));
-            bookmarkFileLocation = failoverBookmarkFileLocation;
-        }
-
-        Util.writeFile(bookmarkFileLocation, "", false);
-
 
         List<RunConsumer> executeTasks = new ArrayList<>();
         final ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 
-
         // Registering a shutdown hook so we can exit cleanly
         Runtime.getRuntime().addShutdownHook(new Thread(() -> kafkaClickstreamConsumer.shutdown(executeTasks, executor)));
 
-        final String replicatedTopic = mirrorClientSource.replicationPolicy().formatRemoteTopic(KafkaClickstreamConsumer.sourceCluster, topic);
-
         for (Integer i = 0; i < numThreads; i++) {
-            if (failover) {
-                executeTasks.add(new RunConsumer(mm2TranslatedOffsets, replicatedTopic));
-            } else {
-                executeTasks.add(new RunConsumer(replicatedTopic));
-            }
+            executeTasks.add(new RunConsumer(topic));
         }
 
         Collection<Future<String>> futures = submitAll(executor, executeTasks);
@@ -199,7 +148,7 @@ public class KafkaClickstreamConsumer {
         try {
             TimeUnit.SECONDS.sleep(2);
         } catch (InterruptedException e) {
-            logger.error(Util.stackTrace(e));
+            logger.error(e.getMessage(), e);
         }
 
         for (Future<String> future : futures) {
@@ -210,7 +159,7 @@ public class KafkaClickstreamConsumer {
                     logger.info(result);
                 }
             } catch (InterruptedException | ExecutionException e) {
-                logger.error(Util.stackTrace(e));
+                logger.error(e.getMessage(), e);
                 System.exit(1);
             }
         }
@@ -223,7 +172,7 @@ public class KafkaClickstreamConsumer {
                 try {
                     TimeUnit.SECONDS.sleep(2L);
                 } catch (InterruptedException e) {
-                    logger.error(Util.stackTrace(e));
+                    logger.error(e.getMessage(), e);
                 }
                 for (Future<String> future : futures) {
                     if (future.isDone()) {
@@ -244,7 +193,7 @@ public class KafkaClickstreamConsumer {
             try {
                 TimeUnit.SECONDS.sleep(2L);
             } catch (InterruptedException e) {
-                logger.error(Util.stackTrace(e));
+                logger.error(e.getMessage(), e);
             }
             for (Future<String> future : futures) {
                 if (future.isDone()) {
