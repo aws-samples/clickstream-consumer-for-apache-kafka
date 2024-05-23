@@ -5,9 +5,6 @@ import com.beust.jcommander.ParameterException;
 class ParametersValidator{
 
     static void validate() throws ParameterException{
-        if (KafkaClickstreamConsumer.failover && (KafkaClickstreamConsumer.sourceCluster == null || KafkaClickstreamConsumer.destCluster == null)){
-            throw new ParameterException("If parameter --failover (or -flo) is specified, the parameters --sourceCluster (or -src) and --destCluster (or -dst) also need to be specified.");
-        }
         if (KafkaClickstreamConsumer.saslscramEnable && KafkaClickstreamConsumer.mTLSEnable) {
             throw new ParameterException("Specify either --mTLSEnable (or -mtls) or --saslscramEnable (or -sse). Not both.");
         }

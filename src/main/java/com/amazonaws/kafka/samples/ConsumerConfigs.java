@@ -38,7 +38,7 @@ class ConsumerConfigs {
             jsonNode = objectMapper.readTree(secret);
         } catch (IOException e) {
             logger.error("Error reading returned secret for user {} \n", KafkaClickstreamConsumer.saslscramUser);
-            logger.error(Util.stackTrace(e));
+            logger.error(e.getMessage(), e);
             throw new RuntimeException(String.format("Error reading returned secret for user %s \n", KafkaClickstreamConsumer.saslscramUser));
         }
         String password = jsonNode.get("password").asText();
@@ -58,6 +58,7 @@ class ConsumerConfigs {
         } 
         catch(IOException e) {
             logger.error("Properties file path not found in location: {}\n", KafkaClickstreamConsumer.propertiesFilePath);
+            logger.error(e.getMessage(), e);
         }
 
         consumerProps.setProperty(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, "true");

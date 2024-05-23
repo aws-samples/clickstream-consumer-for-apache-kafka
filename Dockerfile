@@ -27,20 +27,12 @@ RUN wget https://bootstrap.pypa.io/get-pip.py
 RUN python3 get-pip.py
 RUN pip3 install awscli
 
-ENV SCALA_VERSION 2.13
-ENV KAFKA_VERSION 2.7.0
-
 # Prometheus Java agent
 RUN wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.13.0/jmx_prometheus_javaagent-0.13.0.jar
 RUN mv jmx_prometheus_javaagent-0.13.0.jar /opt
 
 RUN git clone https://github.com/aws-samples/sasl-scram-secrets-manager-client-for-msk.git
 WORKDIR sasl-scram-secrets-manager-client-for-msk
-RUN mvn clean install -f pom.xml
-WORKDIR ../
-
-RUN git clone https://github.com/aws-samples/mirrormaker2-msk-migration.git
-WORKDIR mirrormaker2-msk-migration
 RUN mvn clean install -f pom.xml
 WORKDIR ../
 

@@ -19,15 +19,6 @@ class RunConsumer implements Callable<String> {
     private boolean cancel = false;
     private final Consumer<String, ClickEvent> consumer;
     private final String replicatedTopic;
-    private Map<TopicPartition, OffsetAndMetadata> mm2TranslatedOffsets;
-
-    private Map<TopicPartition, Long> checkpointLag;
-
-    RunConsumer(Map<TopicPartition, OffsetAndMetadata> mm2TranslatedOffsets, String replicatedTopic) {
-       this.mm2TranslatedOffsets = mm2TranslatedOffsets;
-       consumer = new KafkaConsumerFactory().createConsumer();
-       this.replicatedTopic = replicatedTopic;
-    }
 
     RunConsumer(String replicatedTopic) {
         consumer = new KafkaConsumerFactory().createConsumer();
@@ -50,46 +41,48 @@ class RunConsumer implements Callable<String> {
 
         try {
 
-            consumer.subscribe(Pattern.compile(topicPattern), new Rebalance(consumer, currentOffsets, mm2TranslatedOffsets));
-            consumer.poll(Duration.ofSeconds(2));
-
+            consumer.subscribe(Pattern.compile(topicPattern), new Rebalance(consumer, currentOffsets));
             while (!(cancel)) {
                 ConsumerRecords<String, ClickEvent> records = consumer.poll(Duration.ofSeconds(10));
-                if (records.count() == 0)
-                    logger.info(Thread.currentThread().getName() + " - " + System.currentTimeMillis() + "  Waiting for data. Number of records retrieved: " + records.count());
+                ConsumerRecord<String, ClickEvent>  lastRecord = null;
                 for (ConsumerRecord<String, ClickEvent> record : records) {
-                    if (numberOfMessages == 0)
-                        logger.info("{} - Topic = {}, Partition = {}, offset = {}, key = {}, value = {}\n", Thread.currentThread().getName(), record.topic(), record.partition(), record.offset(), record.key().trim(), record.value());
                     globalSeqNo = record.value().getGlobalseq();
                     propagationDelay += System.currentTimeMillis() - record.value().getEventtimestamp();
                     numberOfMessages++;
-                    if (numberOfMessages % 1000 == 0){
-                        avgPropagationDelay = (double)propagationDelay/numberOfMessages;
-                        logger.info("{} - Avg Propagation delay in milliseconds: {} \n", Thread.currentThread().getName(), avgPropagationDelay);
-                        logger.info("{} - Messages processed: {} \n", Thread.currentThread().getName(), numberOfMessages);
-                        logger.info("{} - Topic = {}, Partition = {}, offset = {}, key = {}, value = {} \n", Thread.currentThread().getName(), record.topic(), record.partition(), record.offset(), record.key().trim(), record.value());
-                    }
-
                     currentOffsets.put(new TopicPartition(record.topic(), record.partition()), new OffsetAndMetadata(record.offset() + 1, "No Metadata"));
+                    lastRecord = record;
                 }
-                consumer.commitAsync(currentOffsets, null);
+                if (lastRecord == null)
+                    continue;
+                    
+                if (numberOfMessages % 100_000 == 0) {
+                    avgPropagationDelay = (double)propagationDelay/numberOfMessages;
+                    logger.info("{} - Messages processed: {} \n", Thread.currentThread().getName(), numberOfMessages);
+                    logger.info("{} - Avg Propagation delay in milliseconds: {} \n", Thread.currentThread().getName(), avgPropagationDelay);
+                    logger.info("{} - Current Offsets: {} \n", Thread.currentThread().getName(), currentOffsets);
+                    logger.info("{} - Last record - Topic = {}, Partition = {}, offset = {}, key = {}, value = {} \n", Thread.currentThread().getName(), lastRecord.topic(), lastRecord.partition(), lastRecord.offset(), lastRecord.key().trim(), lastRecord.value());
+                }
+                long start = System.currentTimeMillis();
+                logger.debug("Beginning commitSync, start time: {}", start);
+                consumer.commitSync(currentOffsets);
+                logger.debug("Finished commitSync, total time: {} millis", System.currentTimeMillis() - start);
             }
         } catch (WakeupException e) {
             // ignore for shutdown
             logger.info("{} - Consumer woken up\n", Thread.currentThread().getName());
         } catch (Exception e) {
-            logger.error(Util.stackTrace(e));
+            logger.error(e.getMessage(), e);
         } finally {
 
             logger.info("{} - Last GlobalSeqNo = {} \n", Thread.currentThread().getName(), globalSeqNo);
             logger.info("{} - Last Offsets = {} \n", Thread.currentThread().getName(), currentOffsets);
             logger.info("{} - Messages processed = {} \n", Thread.currentThread().getName(), numberOfMessages);
             logger.info("{} - Avg Propagation delay in milliseconds: = {} \n", Thread.currentThread().getName(), avgPropagationDelay);
-            Util.writeFile(KafkaClickstreamConsumer.bookmarkFileLocation, String.format("Last GlobalSeqNo:%d\n", globalSeqNo), true);
-            Util.writeFile(KafkaClickstreamConsumer.bookmarkFileLocation, String.format("Messages Processed:%d\n", numberOfMessages), true);
+            logger.info("Last GlobalSeqNo: {}\n", globalSeqNo);
+            logger.info("Messages Processed: {}\n", numberOfMessages);
 
             for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : currentOffsets.entrySet()) {
-                Util.writeFile(KafkaClickstreamConsumer.bookmarkFileLocation, String.format("TopicPartitionOffset:%s,%s\n", entry.getKey().toString(), entry.getValue().offset()), true);
+                logger.info("TopicPartitionOffset: {},{}\n", entry.getKey().toString(), entry.getValue().offset());
             }
 
             try {
