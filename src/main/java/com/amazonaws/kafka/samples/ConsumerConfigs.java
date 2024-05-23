@@ -31,7 +31,7 @@ class ConsumerConfigs {
     private static final String SSL_KEYSTORE_PASSWORD_CONFIG = "password";
     private static final String SSL_KEY_PASSWORD_CONFIG = "password";
     private static final String GROUP_ID_CONFIG = "mm2TestConsumer1";
-    private static final String METADATA_MAX_AGE_CONFIG = "5";
+    private static final String METADATA_MAX_AGE_CONFIG = "60000";
     private static final String CLIENT_ID_CONFIG = "clickstream-consumer";
     private static final String ENABLE_AUTO_COMMIT_CONFIG = "false";
     private static final String AUTO_OFFSET_RESET_CONFIG = "earliest";

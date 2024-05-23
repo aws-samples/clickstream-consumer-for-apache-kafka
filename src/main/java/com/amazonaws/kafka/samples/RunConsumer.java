@@ -72,7 +72,7 @@ class RunConsumer implements Callable<String> {
 
                     currentOffsets.put(new TopicPartition(record.topic(), record.partition()), new OffsetAndMetadata(record.offset() + 1, "No Metadata"));
                 }
-                consumer.commitAsync(currentOffsets, null);
+                consumer.commitSync(currentOffsets);
             }
         } catch (WakeupException e) {
             // ignore for shutdown
