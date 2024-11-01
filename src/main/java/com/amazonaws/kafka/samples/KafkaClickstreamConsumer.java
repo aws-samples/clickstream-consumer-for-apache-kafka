@@ -164,10 +164,12 @@ public class KafkaClickstreamConsumer {
         }
         ParametersValidator.validate();
         consumerProperties = ConsumerConfigs.consumerConfig();
-        MM2Config mm2Config = new MM2Config();
-        MirrorClientSource mirrorClientSource = new MirrorClientSource(mm2Config.mm2config());
+        String replicatedTopic = topic;
 
         if (failover) {
+            MM2Config mm2Config = new MM2Config();
+            MirrorClientSource mirrorClientSource = new MirrorClientSource(mm2Config.mm2config());
+            replicatedTopic = mirrorClientSource.replicationPolicy().formatRemoteTopic(KafkaClickstreamConsumer.sourceCluster, topic);
             checkpointLag = kafkaClickstreamConsumer.getCheckPointLag(mirrorClientSource);
             mm2TranslatedOffsets = Util.updateMM2translatedOffsetsIfCheckpointLag(checkpointLag, mirrorClientSource, Util.getTranslatedOffsets(mm2Config));
             bookmarkFileLocation = failoverBookmarkFileLocation;
@@ -175,15 +177,11 @@ public class KafkaClickstreamConsumer {
 
         Util.writeFile(bookmarkFileLocation, "", false);
 
-
         List<RunConsumer> executeTasks = new ArrayList<>();
         final ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 
-
         // Registering a shutdown hook so we can exit cleanly
         Runtime.getRuntime().addShutdownHook(new Thread(() -> kafkaClickstreamConsumer.shutdown(executeTasks, executor)));
-
-        final String replicatedTopic = mirrorClientSource.replicationPolicy().formatRemoteTopic(KafkaClickstreamConsumer.sourceCluster, topic);
 
         for (Integer i = 0; i < numThreads; i++) {
             if (failover) {
