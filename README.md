@@ -19,34 +19,6 @@ For the 3rd party Schema Registry, the location of the Schema Registry needs to 
 The consumer supports running multiple consumers in multiple threads. The number of consumers to be run in separate threads 
 can be specified and they will be run in the same consumer group.
 
-This consumer works with the constructs in [MirrorMaker2](https://cwiki.apache.org/confluence/display/KAFKA/KIP-382%3A+MirrorMaker+2.0).
-MirrorMaker v2 (MM2), which ships as part of Apache Kafka in version 2.4.0 and above, detects and 
-replicates topics, topic partitions, topic configurations and topic ACLs to the destination cluster that matches a regex topic pattern. 
-Further, it checks for new topics that matches the topic pattern or changes to configurations and ACLs at regular configurable intervals. 
-The topic pattern can also be dynamically changed by changing the configuration of the MirrorSourceConnector. 
-Therefore MM2 can be used to migrate topics and topic data to the destination cluster and keep them in sync.
-
-When replicating messages in topics between clusters, the offsets in topic partitions could be different 
-due to producer retries or more likely due to the fact that the retention period in the source topic could've passed 
-and messages in the source topic already deleted when replication starts. Even if the the __consumer_offsets topic is replicated, 
-the consumers, on failover, might not find the offsets at the destination.
-
-MM2 provides a facility that keeps source and destination offsets in sync. The MM2 MirrorCheckpointConnector periodically 
-emits checkpoints in the destination cluster, containing offsets for each consumer group in the source cluster. 
-The connector periodically queries the source cluster for all committed offsets from all consumer groups, filters for 
-topics being replicated, and emits a message to a topic like \<source-cluster-alias\>.checkpoints.internal in the destination cluster. 
-These offsets can then be queried and retrieved by using provided classes **RemoteClusterUtils** or **MirrorClient**. This 
-consumer accepts a parameter (-flo) which indicates if the consumer has failed over. In which case, it utilizes the RemoteClusterUtils class to 
-get the translated offsets at the destination, and seeks to it. Since the MirrorCheckpointConnector emits checkpoints periodically, 
-there could be additional offsets read by the consumer at the source that were not checkpointed when the consumer failed over. To 
-account for that in order to minimize duplicates, this consumer writes the last offset processed for each topic partition to a file when stopped. On failover, 
-it reads the file and calculates the difference in offsets between the checkpointed offsets and the last offset read at the source and 
-skips the equivalent number of messages at the destination after translation and resumes reading.
-
-In addition, if the consumer offsets are being synced between the MM2 checkpointed offsets and the __consumer_offsets 
-at the destination in the background, this consumer can also be used to simply start reading from the last committed offset 
-at the destination.
-
 This consumer supports TLS in-transit encryption, TLS mutual authentication and SASL/SCRAM authentication with Amazon MSK.
 See the relevant parameters to enable them below.
 
@@ -63,14 +35,6 @@ The library needs to be installed first before creating the jar file for the con
     cd sasl-scram-secrets-manager-client-for-msk
     mvn clean install -f pom.xml
     
-### If using this consumer with a custom replication policy with MirrorMaker 2.0
-
-#### Clone and install the jar file for CustomMM2ReplicationPolicy
-
-    git clone https://github.com/aws-samples/mirrormaker2-msk-migration.git
-    cd mirrormaker2-msk-migration.git
-    mvn clean install -f pom.xml
-
 ### Clone the repository and create the jar file.  
 
     mvn clean package -f pom.xml
@@ -88,13 +52,6 @@ The library needs to be installed first before creating the jar file for the con
    * ***--iamEnable (or -iam)***: Enable AWS IAM authentication between this application and Amazon MSK with in-transit encryption. If this parameter is specified, this parameter cannot be specified with --mTLSEnable (or -mtls) or --sslEnable (or -ssl) or --saslscramEnable (or -sse). For IAM authentication / authorization to work, attach an [authorization policy](https://docs.aws.amazon.com/msk/latest/developerguide/iam-access-control.html#create-iam-access-control-policies) to the IAM role that corresponds to EC2 Instance Profile.
    * ***--saslscramUser (or -ssu)***: The name of the SASL/SCRAM user stored in AWS Secrets Manager to be used for SASL/SCRAM authentication between this application and Amazon MSK. If this parameter is specified, --saslscramEnable (or -sse) also needs to be specified.
    * ***--region (or -reg)***: The region for AWS Secrets Manager storing secrets for SASL/SCRAM authentication with Amazon MSK. Default us-east-1.
-   * ***--failover (or -flo)***: Whether the consumer has failover to the destination cluster.
-   * ***--sourceRewind (or -srr)***: Whether to rewind the consumer to start from the beginning of the retention period.
-   * ***--sourceCluster (or -src)***: The alias of the source cluster specified in the MM2 configuration.
-   * ***--destCluster (or -dst)***: The alias of the destination cluster specified in the MM2 configuration.
-   * ***--destCluster (or -dst)***: The alias of the destination cluster specified in the MM2 configuration.
-   * ***--replicationPolicyClass (or -rpc)***: The class name of the replication policy to use. Works with a custom MM2 replication policy.
-   * ***--replicationPolicySeparator (or -rps)***: The separator to use with the DefaultReplicationPolicy between the source cluster alias and the topic name.
    * ***--glueSchemaRegistry (or -gsr)***: Use the AWS Glue Schema Registry. Default **false**.
    * ***--gsrRegion or (-gsrr)***: The AWS region for the AWS Glue Schema Registry. Default ***us-east-1***.
    * ***--gsrRegistryName or (-grn)***: The AWS Glue Schema Registry Name. If not specified, the default registry is used.
@@ -108,19 +65,14 @@ The library needs to be installed first before creating the jar file for the con
    #### At the source and the destination with a background process to sync MM2 checkpointed offsets to the __consumer_offsets internal topic at the destination.
    
    ```
-   java -jar KafkaClickstreamConsumer-1.0-SNAPSHOT.jar -t ExampleTopic -pfp /tmp/kafka/consumer.properties -nt 3 -rf 10800 -mtls -src msksource
+   java -jar KafkaClickstreamConsumer-1.0-SNAPSHOT.jar -t ExampleTopic -pfp /tmp/kafka/consumer.properties -nt 3 -rf 10800 -mtls
    ```
 
-   #### At the destination using the consumer to query and snap to MM2 checkpointed offsets.
-   
-   ```
-   java -jar KafkaClickstreamConsumer-1.0-SNAPSHOT.jar -t ExampleTopic -pfp /tmp/kafka/consumer.properties -nt 3 -rf 10800 -mtls -flo -src msksource -dst mskdest
-   ```
 
    #### At the source or destination using SASL/SCRAM authentication with a user named "nancy".
    
    ```
-   java -jar KafkaClickstreamConsumer-1.0-SNAPSHOT.jar -t ExampleTopic -pfp /tmp/kafka/consumer.properties -nt 3 -rf 10800 -sse -ssu nancy -src msksource
+   java -jar KafkaClickstreamConsumer-1.0-SNAPSHOT.jar -t ExampleTopic -pfp /tmp/kafka/consumer.properties -nt 3 -rf 10800 -sse -ssu nancy
    ```
 
    #### At the source or destination using IAM authentication using EC2 instance profile.
@@ -128,11 +80,3 @@ The library needs to be installed first before creating the jar file for the con
    ```
    java -jar KafkaClickstreamConsumer-1.0-SNAPSHOT.jar -t ExampleTopic -pfp /tmp/kafka/consumer.properties -nt 3 -rf 10800 -iam
    ```
-
-    #### Running in Docker at the source or destination with IAM authentication 
-
-    ```
-    export DOCKER_DEFAULT_PLATFORM="linux/amd64" 
-    docker build . -t clickstream-consumer-for-apache-kafka:latest 
-    docker run --rm -p 3800:3800 -e REGION=us-east-1 -e BOOTSTRAP_SERVERS_CONFIG="b-1.XXX.kafka.us-east-1.amazonaws.com:9098" -e TOPIC=click-stream -e NMTRD=1 clickstream-consumer-for-apache-kafka:latest
-    ```
