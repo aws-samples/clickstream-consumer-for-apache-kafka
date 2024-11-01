@@ -51,12 +51,6 @@ public class KafkaClickstreamConsumer {
     @Parameter(names = {"--glueSchemaRegistry", "-gsr"})
     static boolean glueSchemaRegistry = false;
 
-    @Parameter(names = {"--failover", "-flo"})
-    static boolean failover = false;
-
-    @Parameter(names = {"--sourceCluster", "-src"})
-    static String sourceCluster = "msksource";
-
     @Parameter(names = {"--gsrRegistryName", "-grn"})
     static String gsrRegistryName;
 
@@ -68,9 +62,6 @@ public class KafkaClickstreamConsumer {
 
     @Parameter(names = {"--secondaryDeserializer", "-sdd"})
     static boolean secondaryDeserializer = false;
-
-    @Parameter(names = {"--destCluster", "-dst"})
-    static String destCluster = "mskdest";
 
     @Parameter(names = {"--region", "-reg"})
     static String region = "us-east-1";
