@@ -19,24 +19,10 @@ RUN java -version && javac -version
 RUN yum groupinstall -y "Development Tools" && \
     yum install -y gcc openssl-devel bzip2-devel libffi-devel zlib-devel make
 
-# Download and install Python3.12
-RUN cd /tmp && \
-    wget https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tgz && \
-    tar xzf Python-3.12.0.tgz && \
-    cd Python-3.12.0 && \
-    ./configure --enable-optimizations && \
-    make && \
-    make altinstall && \
-    cd /tmp && \
-    rm -rf Python-3.12.0* 
 
-# Verify installation
-RUN python3.12 --version
-
-ARG MAVEN_VERSION=3.9.6
-
+ARG MAVEN_VERSION=3.9.10
 # Maven
-RUN curl -fsSL https://archive.apache.org/dist/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz | tar xzf - -C /usr/share \
+RUN curl -fsSL https://dlcdn.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz | tar xzf - -C /usr/share \
   && mv /usr/share/apache-maven-$MAVEN_VERSION /usr/share/maven \
   && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn
 
@@ -45,14 +31,6 @@ ENV M2_HOME /usr/share/maven
 ENV maven.home $M2_HOME
 ENV M2 $M2_HOME/bin
 ENV PATH $M2:$PATH
-
-RUN wget https://bootstrap.pypa.io/get-pip.py && \
-    python3.12 get-pip.py && \
-    rm get-pip.py
-
-# Install awscli w python3.12
-RUN pip3.12 install awscli
-
 ENV SCALA_VERSION 2.13
 ENV KAFKA_VERSION 3.7.0
 
